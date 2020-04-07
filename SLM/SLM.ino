@@ -17,19 +17,21 @@ int SensorPin=A0;
 float reading=0;
 int secondled=A1;
 int photoout=0;
-float readvolt,photvolt;
+float photoVoltS1,photoVoltS2;
+const int GREEN = 0, YELLOW = 1, RED = 2, NOCOLOR = 3;
+bool trigger = false; 
 
 void setup() 
 {
     // HC-05 default serial speed for commincation mode is 9600
     BTserial.begin(9600); 
     Serial.println("BlueTooth is ready");
-    pinMode(A0,INPUT);
-    pinMode(A1,INPUT);
+    pinMode(A0,INPUT);//Sensor 1
+    pinMode(A1,INPUT);//Sensor 2
     pinMode(13,OUTPUT);//yellow
     pinMode(12,OUTPUT);//Red
     pinMode(11,OUTPUT);//green
-    //pinMode(10,OUTPUT);//relay
+    pinMode(10,OUTPUT);//relay
     pinMode(9,OUTPUT);//Buzzer
     Serial.begin(9600);
     Serial.println("Arduino is ready");
@@ -54,62 +56,82 @@ void blueTooth(){
   
 }
 
-void LED(){
-  reading=analogRead(A0);
-  readvolt= reading * (5.0 / 1023.0);
+void activateLED(int color){
+    switch(color){
+        case 0://GREEN
+          digitalWrite(13,LOW);
+          digitalWrite(12,LOW);
+          digitalWrite(11,HIGH);
+          break;
+        case 1://YELLOW
+          digitalWrite(13,HIGH);
+          digitalWrite(12,LOW);
+          digitalWrite(11,LOW);
+          break;
+        case 2://RED
+          digitalWrite(13,LOW);
+          digitalWrite(12,HIGH);
+          digitalWrite(11,LOW);
+          break;
+        case 3://NOCOLOR
+          digitalWrite(13,LOW);
+          digitalWrite(12,LOW);
+          digitalWrite(11,LOW);
+          break;
+        default:
+          digitalWrite(13,LOW);
+          digitalWrite(12,LOW);
+          digitalWrite(11,LOW);
+          break;
+      }
   
-  photoout=analogRead(A1);
-  photvolt= photoout * (5.0 / 1023.0);
+  }
+
+// void LED2(){
+  
+  
+//   }
+
+void LED(){
+  reading = analogRead(A0);
+  photoVoltS1= reading * (5.0 / 1023.0);
+  
+  reading = analogRead(A1);
+  photoVoltS2 = reading * (5.0 / 1023.0);
   
   Serial.print("photoout1= ");
-  Serial.println(readvolt);
+  Serial.println(photoVoltS1);
   Serial.print("photoout2= ");
-  Serial.println(photvolt);
+  Serial.println(photoVoltS2);
   
-  if(readvolt<5 && readvolt>1.0){
+  if(photoVoltS1<5 && photoVoltS1>1.0){
      Serial.println("Safe");
-     digitalWrite(13,LOW);
-     digitalWrite(12,LOW);
-     digitalWrite(11,1);
+     activateLED(GREEN);
      BTserial.write("G");
-   }
-  else{
-    digitalWrite(11,0);
-  }
-  
-if(readvolt<1 && readvolt>0)
-{
-    Serial.println("Call the nurse");
-    digitalWrite(13,1);
-    BTserial.write("Y");
- }
-  else
-  {
-    
-    digitalWrite(13,0);
+   }else if(photoVoltS1<1 && photoVoltS1>0){
+      Serial.println("Call the nurse");
+      activateLED(YELLOW);
+      BTserial.write("Y");
+      trigger = true;
     }
-if(photvolt<1 && photvolt>0)
- {
-    Serial.println("Danger");
-    
-    digitalWrite(11,LOW);
-    digitalWrite(13,LOW);
-    digitalWrite(12,HIGH);
-    digitalWrite(9,HIGH);//Buzzer
-    digitalWrite(10,HIGH);
-    delay(5000);
-    digitalWrite(9,LOW);
-    digitalWrite(10,LOW);
-    BTserial.write("R");
-    while(1);
-   }
- else
- {
-   digitalWrite(12,0);
-   digitalWrite(10,LOW);
-   }
- 
-    delay(1000);
+
+    while(trigger){
+      if(photoVoltS2<1 && photoVoltS2>0){
+        Serial.println("Danger");
+        activateLED(RED);
+        digitalWrite(9,HIGH);//Buzzer
+        digitalWrite(10,HIGH);//RELAY
+        delay(5000);
+        digitalWrite(9,LOW);
+        digitalWrite(10,LOW);
+        while(1){
+          BTserial.write("R");
+        };
+      }else {
+          trigger = false;
+        }
+    }
+  delay(1000);
 }
 
 void loop()
